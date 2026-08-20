@@ -1,0 +1,71 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    # Weekly rebuild to catch base image updates
+    - cron: '0 3 * * 0'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./2.4
+          file: ./2.4/Dockerfile
+          load: true
+          tags: hoelee/webdav2:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start container
+        run: |
+          docker run -d --name webdav-test \
+            -e AUTH_TYPE=Basic \
+            -e USERNAME=testuser \
+            -e PASSWORD=testpass \
+            -p 8080:80 \
+            hoelee/webdav2:ci
+
+      - name: Wait for healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format='{{.State.Health.Status}}' webdav-test 2>/dev/null || echo "starting")
+            if [ "$status" = "healthy" ]; then
+              echo "Container is healthy"
+              exit 0
+            fi
+            echo "Waiting... status=$status"
+            sleep 2
+          done
+          echo "Container did not become healthy in time"
+          docker logs webdav-test
+          exit 1
+
+      - name: Test HTTP responds
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/ | grep -qE '401|200' && echo "HTTP OK"
+
+      - name: Test WebDAV auth
+        run: |
+          curl -sf -u testuser:testpass -X PROPFIND http://localhost:8080/ -H "Depth: 0" -o /dev/null -w "%{http_code}" | grep -qE '207' && echo "WebDAV auth OK"
+
+      - name: Test auth failure
+        run: |
+          code=$(curl -sf -u testuser:wrongpass -X PROPFIND http://localhost:8080/ -H "Depth: 0" -o /dev/null -w "%{http_code}")
+          if [ "$code" = "401" ]; then echo "Auth rejection OK"; else echo "Unexpected: $code"; exit 1; fi
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f webdav-test 2>/dev/null || true

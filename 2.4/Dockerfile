@@ -1,8 +1,15 @@
-FROM httpd:alpine
+FROM httpd:2.4.62-alpine3.20
 
 # These variables are inherited from the httpd:alpine image:
 # ENV HTTPD_PREFIX /usr/local/apache2
 # WORKDIR "$HTTPD_PREFIX"
+
+# OCI image labels
+LABEL org.opencontainers.image.title="docker-webdav2" \
+      org.opencontainers.image.description="Lightweight WebDAV server with Apache httpd" \
+      org.opencontainers.image.source="https://github.com/hoelee/docker-webdav2" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.authors="Hoelee Enterprise"
 
 # Copy in our configuration files.
 COPY conf/ conf/
@@ -47,9 +54,15 @@ RUN set -ex; \
     ln -s ../conf-available/dav.conf "conf/conf-enabled"; \
     ln -s ../sites-available/default.conf "conf/sites-enabled"; \
     # Install openssl if we need to generate a self-signed certificate.
-    apk add --no-cache openssl
+    apk add --no-cache openssl; \
+    # Install curl for healthcheck.
+    apk add --no-cache curl
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -s -o /dev/null -w "%{http_code}" http://localhost/ | grep -qE '^(200|401)$' || exit 1
+
 EXPOSE 80/tcp 443/tcp
 ENTRYPOINT [ "docker-entrypoint.sh" ]
 CMD [ "httpd-foreground" ]

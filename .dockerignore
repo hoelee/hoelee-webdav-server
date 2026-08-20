@@ -1,0 +1,11 @@
+.git
+.gitignore
+.github
+README.md
+LICENSE
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile
+*.md
+.DS_Store
+Thumbs.db

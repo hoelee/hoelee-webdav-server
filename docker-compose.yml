@@ -1,0 +1,24 @@
+services:
+  webdav:
+    build:
+      context: ./2.4
+      dockerfile: Dockerfile
+    image: hoelee/webdav2:latest
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      AUTH_TYPE: Digest
+      USERNAME: alice
+      PASSWORD: ChangeMe1234
+      SERVER_NAMES: dav.example.com
+      # SSL_CERT: selfsigned  # uncomment for self-signed SSL
+    volumes:
+      - dav-data:/var/lib/dav
+      # - ./cert.pem:/cert.pem:ro      # bind mount your own cert
+      # - ./privkey.pem:/privkey.pem:ro
+      # - ./user.passwd:/user.passwd:ro  # multi-user auth file
+
+volumes:
+  dav-data:

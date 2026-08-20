@@ -15,30 +15,30 @@ set -e
 HTTPD_PREFIX="${HTTPD_PREFIX:-/usr/local/apache2}"
 
 # Configure vhosts.
-if [ "x$SERVER_NAMES" != "x" ]; then
+if [ -n "$SERVER_NAMES" ]; then
     # Use first domain as Apache ServerName.
     SERVER_NAME="${SERVER_NAMES%%,*}"
     sed -e "s|ServerName .*|ServerName $SERVER_NAME|" \
         -i "$HTTPD_PREFIX"/conf/sites-available/default*.conf
 
     # Replace commas with spaces and set as Apache ServerAlias.
-    SERVER_ALIAS="`printf '%s\n' "$SERVER_NAMES" | tr ',' ' '`"
-    sed -e "/ServerName/a\ \ ServerAlias $SERVER_ALIAS" \
+    SERVER_ALIAS="$(printf '%s\n' "$SERVER_NAMES" | tr ',' ' ')"
+    sed -e "/ServerName/a\\ \\ ServerAlias $SERVER_ALIAS" \
         -i "$HTTPD_PREFIX"/conf/sites-available/default*.conf
 fi
 
 # Configure dav.conf
-if [ "x$LOCATION" != "x" ]; then
+if [ -n "$LOCATION" ]; then
     sed -e "s|Alias .*|Alias $LOCATION /var/lib/dav/data/|" \
         -i "$HTTPD_PREFIX/conf/conf-available/dav.conf"
 fi
-if [ "x$REALM" != "x" ]; then
+if [ -n "$REALM" ]; then
     sed -e "s|AuthName .*|AuthName \"$REALM\"|" \
         -i "$HTTPD_PREFIX/conf/conf-available/dav.conf"
 else
     REALM="WebDAV"
 fi
-if [ "x$AUTH_TYPE" != "x" ]; then
+if [ -n "$AUTH_TYPE" ]; then
     # Only support "Basic" and "Digest".
     if [ "$AUTH_TYPE" != "Basic" ] && [ "$AUTH_TYPE" != "Digest" ]; then
         printf '%s\n' "$AUTH_TYPE: Unknown AuthType" 1>&2
@@ -52,25 +52,26 @@ fi
 if [ ! -e "/user.passwd" ]; then
     touch "/user.passwd"
     # Only generate a password hash if both username and password given.
-    if [ "x$USERNAME" != "x" ] && [ "x$PASSWORD" != "x" ]; then
+    if [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
         if [ "$AUTH_TYPE" = "Digest" ]; then
             # Can't run `htdigest` non-interactively, so use other tools.
-            HASH="`printf '%s' "$USERNAME:$REALM:$PASSWORD" | md5sum | awk '{print $1}'`"
+            HASH="$(printf '%s' "$USERNAME:$REALM:$PASSWORD" | md5sum | awk '{print $1}')"
             printf '%s\n' "$USERNAME:$REALM:$HASH" > /user.passwd
         else
-            htpasswd -B -b -c "/user.passwd" $USERNAME $PASSWORD
+            # Use -i flag to read password from stdin, avoiding process list leak.
+            printf '%s\n' "$PASSWORD" | htpasswd -i -B -c "/user.passwd" "$USERNAME" >/dev/null 2>&1
         fi
     fi
 fi
 
 # If specified, allow anonymous access to specified methods.
-if [ "x$ANONYMOUS_METHODS" != "x" ]; then
+if [ -n "$ANONYMOUS_METHODS" ]; then
     if [ "$ANONYMOUS_METHODS" = "ALL" ]; then
         sed -e "s/Require valid-user/Require all granted/" \
             -i "$HTTPD_PREFIX/conf/conf-available/dav.conf"
     else
-        ANONYMOUS_METHODS="`printf '%s\n' "$ANONYMOUS_METHODS" | tr ',' ' '`"
-        sed -e "/Require valid-user/a\ \ \ \ Require method $ANONYMOUS_METHODS" \
+        ANONYMOUS_METHODS="$(printf '%s\n' "$ANONYMOUS_METHODS" | tr ',' ' ')"
+        sed -e "/Require valid-user/a\\ \\ \\ \\ Require method $ANONYMOUS_METHODS" \
             -i "$HTTPD_PREFIX/conf/conf-available/dav.conf"
     fi
 fi
@@ -101,6 +102,11 @@ fi
 # Create directories for Dav data and lock database.
 [ ! -d "/var/lib/dav/data" ] && mkdir -p "/var/lib/dav/data"
 [ ! -e "/var/lib/dav/DavLock" ] && touch "/var/lib/dav/DavLock"
-chown -R www-data:www-data "/var/lib/dav"
+
+# Fix ownership only if needed (avoids slow chown -R on large data dirs).
+OWNER="$(stat -c '%U:%G' /var/lib/dav 2>/dev/null || true)"
+if [ "$OWNER" != "www-data:www-data" ]; then
+    chown -R www-data:www-data "/var/lib/dav"
+fi
 
 exec "$@"
