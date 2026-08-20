@@ -1,4 +1,4 @@
-# docker-webdav2
+# hoelee-webdav-server
 
 A lightweight WebDAV server running on Apache httpd in Docker. Fork of [BytemarkHosting/docker-webdav](https://github.com/BytemarkHosting/docker-webdav) with security hardening, modern TLS, CI/CD, and operational improvements.
 
@@ -7,6 +7,8 @@ A lightweight WebDAV server running on Apache httpd in Docker. Fork of [Bytemark
 * `2.4`, `latest` — built from [`2.4/Dockerfile`](2.4/Dockerfile)
 
 Base image: `httpd:2.4.62-alpine3.20` (pinned for reproducibility)
+
+**Docker Hub:** [hub.docker.com/r/hoelee/hoelee-webdav-server](https://hub.docker.com/r/hoelee/hoelee-webdav-server)
 
 ## What's New in This Fork
 
@@ -30,7 +32,7 @@ Base image: `httpd:2.4.62-alpine3.20` (pinned for reproducibility)
 ```bash
 docker run --restart always -v /srv/dav:/var/lib/dav \
     -e AUTH_TYPE=Digest -e USERNAME=alice -e PASSWORD=secret1234 \
-    --publish 80:80 -d hoelee/webdav2
+    --publish 80:80 -d hoelee/hoelee-webdav-server
 ```
 
 > When using unencrypted HTTP, use `Digest` authentication (instead of `Basic`) to avoid sending plaintext passwords.
@@ -43,7 +45,7 @@ services:
     build:
       context: ./2.4
       dockerfile: Dockerfile
-    image: hoelee/webdav2:latest
+    image: hoelee/hoelee-webdav-server:latest
     restart: always
     ports:
       - "80:80"
@@ -79,7 +81,7 @@ docker compose up -d
 ```bash
 docker run --restart always -v /srv/dav:/var/lib/dav \
     -e AUTH_TYPE=Basic -e USERNAME=test -e PASSWORD=test \
-    -e SSL_CERT=selfsigned --publish 443:443 -d hoelee/webdav2
+    -e SSL_CERT=selfsigned --publish 443:443 -d hoelee/hoelee-webdav-server
 ```
 
 **Option C — Bring your own certificate:** Bind mount `/cert.pem` and `/privkey.pem`:
@@ -89,7 +91,7 @@ docker run --restart always -v /srv/dav:/var/lib/dav \
     -v /path/to/cert.pem:/cert.pem:ro \
     -v /path/to/privkey.pem:/privkey.pem:ro \
     -e AUTH_TYPE=Basic -e USERNAME=test -e PASSWORD=test \
-    --publish 443:443 -d hoelee/webdav2
+    --publish 443:443 -d hoelee/hoelee-webdav-server
 ```
 
 ### Authenticate multiple users
@@ -158,3 +160,15 @@ GitHub Actions workflow in `.github/workflows/ci.yml`:
 ## License
 
 MIT — see [LICENSE](LICENSE). Original work © Bytemark Hosting.
+
+---
+
+## Maintainer
+
+**Hoelee Enterprise** — Email hosting, web hosting & web design for Malaysian small businesses.
+
+- 🌐 [www.hoelee.com](https://www.hoelee.com)
+- 📧 me@hoelee.com
+- 📱 WhatsApp: 012-797 2969
+- 🐙 [github.com/hoelee](https://github.com/hoelee)
+- 🐳 [hub.docker.com/u/hoelee](https://hub.docker.com/u/hoelee)
