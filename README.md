@@ -4,7 +4,7 @@ A lightweight WebDAV server running on Apache httpd in Docker. Fork of [Bytemark
 
 ## Supported tags
 
-* `2.4`, `latest` — built from [`2.4/Dockerfile`](2.4/Dockerfile)
+* `latest`, `v1.0.0` — built from [`2.4/Dockerfile`](2.4/Dockerfile)
 
 Base image: `httpd:2.4.62-alpine3.20` (pinned for reproducibility)
 
@@ -45,7 +45,7 @@ services:
     build:
       context: ./2.4
       dockerfile: Dockerfile
-    image: hoelee/hoelee-webdav-server:latest
+    image: hoelee/hoelee-webdav-server:v1.0.0
     restart: always
     ports:
       - "80:80"
